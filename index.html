@@ -318,49 +318,49 @@
             <div class="bubble message-csm">
                 <div class="sender-label">Sangfor-CSM</div>
                 <div class="message-content">This is a test.</div>
-                <div class="timestamp" data-time-offset="0">10:05 AM</div>
+                <div class="timestamp" data-time-offset="0">03:05 AM</div>
             </div>
             
             <div class="bubble message-customer">
                 <div class="sender-label">CustA-PIC1</div>
                 <div class="message-content">What test is this?</div>
-                <div class="timestamp" data-time-offset="1">10:06 AM</div>
+                <div class="timestamp" data-time-offset="1">03:05 AM</div>
             </div>
 
             <div class="bubble message-t2">
                 <div class="sender-label">Sangfor-T2</div>
                 <div class="message-content">This is a simulation test to show how good we can be.</div>
-                <div class="timestamp" data-time-offset="2">10:07 AM</div>
+                <div class="timestamp" data-time-offset="2">03:05 AM</div>
             </div>
 
             <div class="bubble message-customer">
                 <div class="sender-label">CustA-PIC1</div>
                 <div class="message-content">I don't believe you. Prove it.</div>
-                <div class="timestamp" data-time-offset="3">10:08 AM</div>
+                <div class="timestamp" data-time-offset="3">03:05 AM</div>
             </div>
 
             <div class="bubble message-csm">
                 <div class="sender-label">Sangfor-CSM</div>
                 <div class="message-content">How can I prove it?</div>
-                <div class="timestamp" data-time-offset="4">10:09 AM</div>
+                <div class="timestamp" data-time-offset="4">03:05 AM</div>
             </div>
 
             <div class="bubble message-customer">
                 <div class="sender-label">CustA-PIC1</div>
                 <div class="message-content">I don't know. You tell me.</div>
-                <div class="timestamp" data-time-offset="5">10:10 AM</div>
+                <div class="timestamp" data-time-offset="5">03:05 AM</div>
             </div>
 
             <div class="bubble message-t2">
                 <div class="sender-label">Sangfor-T2</div>
                 <div class="message-content">Ok, the rain in spain falls mainly on the plane.</div>
-                <div class="timestamp" data-time-offset="6">10:11 AM</div>
+                <div class="timestamp" data-time-offset="6">03:05 AM</div>
             </div>
 
             <div class="bubble message-customer">
                 <div class="sender-label">CustA-PIC1</div>
                 <div class="message-content">What???</div>
-                <div class="timestamp" data-time-offset="7">10:12 AM</div>
+                <div class="timestamp" data-time-offset="7">03:05 AM</div>
             </div>
         </div>
     </main>
@@ -408,9 +408,10 @@
                     MAX_MESSAGES: 100,
                     MAX_TIME_OFFSET: 60,
                     ANIMATION_DELAY: 50,
-                    BASE_HOUR: 3,
-                    BASE_MINUTE: 5,
-                    SCROLL_THRESHOLD: 10 // Minimum movement to count as scroll (px)
+                    BASE_HOUR: 3,        // Fixed at 3 AM
+                    BASE_MINUTE: 5,      // Fixed at 5 minutes
+                    SCROLL_THRESHOLD: 10, // Minimum movement to count as scroll (px)
+                    MAX_MINUTES_BETWEEN: 7 // Maximum minutes between messages
                 });
 
                 // Security: Use WeakMap for private properties
@@ -418,7 +419,7 @@
                 this._private.set(this, {
                     elements: null,
                     currentMessageIndex: 0,
-                    timeOffsets: Object.freeze([0, 1, 2, 3, 4, 5, 6, 7]),
+                    timeOffsets: null, // Will be generated with random intervals
                     baseTime: null,
                     initialized: false,
                     touchStartY: 0,
@@ -449,6 +450,26 @@
             }
 
             /**
+             * Generate random time intervals between messages (1-7 minutes)
+             * @returns {Array} Array of cumulative time offsets in minutes
+             */
+            generateRandomTimeOffsets() {
+                const messageCount = 8;
+                const offsets = [0]; // First message at offset 0
+                let cumulativeOffset = 0;
+                
+                // Generate random intervals for remaining messages
+                for (let i = 1; i < messageCount; i++) {
+                    // Random interval between 1 and MAX_MINUTES_BETWEEN (7 minutes)
+                    const interval = Math.floor(Math.random() * this.CONFIG.MAX_MINUTES_BETWEEN) + 1;
+                    cumulativeOffset += interval;
+                    offsets.push(cumulativeOffset);
+                }
+                
+                return Object.freeze(offsets);
+            }
+
+            /**
              * Format time to 12-hour format with AM/PM
              * @param {Date} date - Date object to format
              * @returns {string} Formatted time string
@@ -471,7 +492,7 @@
             }
             
             /**
-             * Update all timestamp elements with sequential times
+             * Update all timestamp elements with random intervals
              */
             updateTimestamps() {
                 const timestamps = document.querySelectorAll('.timestamp');
@@ -482,12 +503,14 @@
                     return;
                 }
 
-                // Initialize base time
+                // Initialize base time (fixed at 3:05 AM)
                 const baseTime = new Date();
                 baseTime.setHours(this.CONFIG.BASE_HOUR, this.CONFIG.BASE_MINUTE, 0, 0);
                 this._setPrivate('baseTime', baseTime);
                 
-                const timeOffsets = this._getPrivate('timeOffsets');
+                // Generate random time offsets
+                const timeOffsets = this.generateRandomTimeOffsets();
+                this._setPrivate('timeOffsets', timeOffsets);
                 
                 timestamps.forEach((timestamp, i) => {
                     try {
