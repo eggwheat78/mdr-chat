@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'none';">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="Referrer-Policy" content="no-referrer">
+    <title>Athena MDR Communication Demo</title>
+    
+    <!-- Optional: External CSS (or keep inline styles) -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Header will be populated by JavaScript -->
+    <header class="header" id="chatHeader">
+        <div class="avatar" id="chatAvatar"></div>
+        <div class="header-content">
+            <div class="header-title" id="chatTitle"></div>
+            <div class="header-subtitle" id="chatSubtitle">
+                <span id="chatSubtitleText"></span>
+                <span class="status-indicator" aria-label="Online"></span>
+            </div>
+        </div>
+    </header>
+
+    <main class="chat-container">
+        <!-- Chat messages will be populated by JavaScript -->
+        <div class="chat" id="chatContainer">
+            <div class="date-separator" id="dateSeparator">
+                <span class="date-label" id="dateLabel"></span>
+            </div>
+            <!-- Messages will be inserted here -->
+        </div>
+    </main>
+
+    <!-- Image Viewer Overlay -->
+    <div class="image-viewer" id="imageViewer">
+        <button class="close-viewer" id="closeViewer">&times;</button>
+        <img id="viewedImage" src="" alt="">
+        <div class="image-counter" id="imageCounter"></div>
+    </div>
+
+    <!-- Load JavaScript files in order -->
+    <script src="security-utils.js" nonce="script-nonce"></script>
+    <script src="chat-content.js" nonce="script-nonce"></script>
+    <script src="chat-engine.js" nonce="script-nonce"></script>
+    
+    <script nonce="script-nonce">
+        // Initialize application when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                // Use the ChatContent configuration
+                const chatDemo = new ChatDemo(ChatContent);
+                
+                // Security measures
+                Object.freeze(Object.prototype);
+                Object.freeze(Array.prototype);
+                Object.freeze(String.prototype);
+                
+            } catch (error) {
+                console.error('Failed to initialize application:', error);
+                document.getElementById('chatContainer').innerHTML = 
+                    '<div class="error">Application failed to load. Please refresh the page.</div>';
+            }
+        });
+
+        // Security: Prevent opening of new windows/tabs
+        if (window.opener) {
+            window.opener = null;
+        }
+        if (window.top !== window.self) {
+            window.top.location = window.self.location;
+        }
+    </script>
+</body>
+</html>
