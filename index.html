@@ -110,6 +110,7 @@
             max-width: 800px;
             margin: 0 auto;
             width: 100%;
+            -webkit-overflow-scrolling: touch; /* Better scrolling on iOS */
         }
 
         /* Scrollbar */
@@ -408,7 +409,8 @@
                     MAX_TIME_OFFSET: 60,
                     ANIMATION_DELAY: 50,
                     BASE_HOUR: 10,
-                    BASE_MINUTE: 5
+                    BASE_MINUTE: 5,
+                    SCROLL_THRESHOLD: 10 // Minimum movement to count as scroll (px)
                 });
 
                 // Security: Use WeakMap for private properties
@@ -418,7 +420,9 @@
                     currentMessageIndex: 0,
                     timeOffsets: Object.freeze([0, 1, 2, 3, 4, 5, 6, 7]),
                     baseTime: null,
-                    initialized: false
+                    initialized: false,
+                    touchStartY: 0,
+                    isScrolling: false
                 });
 
                 this.init();
@@ -569,11 +573,10 @@
                     return;
                 }
                 
-                // SOLUTION 5 IMPLEMENTED: Removed the bubble check that was blocking mobile touches
-                // The problematic code that was removed:
-                // if (event.target.closest('.bubble')) {
-                //     return;
-                // }
+                // Don't trigger if user is currently scrolling
+                if (this._getPrivate('isScrolling')) {
+                    return;
+                }
                 
                 // Security: Validate event target
                 if (!event.target || !(event.target instanceof Node)) {
@@ -586,16 +589,51 @@
                     this._interactionCooldown = false;
                 }, 100);
                 
-                // Prevent default for certain events
-                if (event.type === 'touchstart') {
-                    event.preventDefault();
-                }
-                
                 try {
                     this.showNextMessage();
                 } catch (error) {
                     console.error('Error handling interaction:', error);
                 }
+            }
+            
+            /**
+             * Handle touch start to detect scrolling
+             * @param {TouchEvent} event - Touch event
+             */
+            handleTouchStart(event) {
+                // Record the initial touch position
+                if (event.touches.length === 1) {
+                    this._setPrivate('touchStartY', event.touches[0].clientY);
+                    this._setPrivate('isScrolling', false);
+                }
+            }
+            
+            /**
+             * Handle touch move to detect scrolling
+             * @param {TouchEvent} event - Touch event
+             */
+            handleTouchMove(event) {
+                if (event.touches.length === 1) {
+                    const touchStartY = this._getPrivate('touchStartY');
+                    const currentY = event.touches[0].clientY;
+                    const deltaY = Math.abs(currentY - touchStartY);
+                    
+                    // If vertical movement exceeds threshold, it's a scroll
+                    if (deltaY > this.CONFIG.SCROLL_THRESHOLD) {
+                        this._setPrivate('isScrolling', true);
+                    }
+                }
+            }
+            
+            /**
+             * Handle touch end
+             * @param {TouchEvent} event - Touch event
+             */
+            handleTouchEnd(event) {
+                // Reset scrolling state after a short delay
+                setTimeout(() => {
+                    this._setPrivate('isScrolling', false);
+                }, 100);
             }
             
             /**
@@ -622,18 +660,29 @@
                     
                     // Security: Bind event handlers with proper context
                     const boundHandleInteraction = this.handleInteraction.bind(this);
+                    const boundHandleTouchStart = this.handleTouchStart.bind(this);
+                    const boundHandleTouchMove = this.handleTouchMove.bind(this);
+                    const boundHandleTouchEnd = this.handleTouchEnd.bind(this);
                     
                     // Add event listeners with error handling
                     const addEventListenerSafe = (element, event, handler) => {
                         try {
-                            element.addEventListener(event, handler, { passive: false });
+                            element.addEventListener(event, handler, { passive: event !== 'touchstart' });
                         } catch (error) {
                             console.error(`Error adding ${event} listener:`, error);
                         }
                     };
                     
+                    // Only use click event for desktop
                     addEventListenerSafe(document, 'click', boundHandleInteraction);
-                    addEventListenerSafe(document, 'touchstart', boundHandleInteraction);
+                    
+                    // For touch devices, use touchend instead of touchstart to allow scrolling
+                    addEventListenerSafe(document, 'touchend', boundHandleInteraction);
+                    
+                    // Add touch event listeners for scroll detection
+                    addEventListenerSafe(document, 'touchstart', boundHandleTouchStart);
+                    addEventListenerSafe(document, 'touchmove', boundHandleTouchMove);
+                    addEventListenerSafe(document, 'touchend', boundHandleTouchEnd);
                     
                     // Keyboard support
                     addEventListenerSafe(document, 'keydown', (e) => {
@@ -668,6 +717,9 @@
                     // Remove event listeners
                     document.removeEventListener('click', this.handleInteraction);
                     document.removeEventListener('touchstart', this.handleInteraction);
+                    document.removeEventListener('touchstart', this.handleTouchStart);
+                    document.removeEventListener('touchmove', this.handleTouchMove);
+                    document.removeEventListener('touchend', this.handleTouchEnd);
                     document.removeEventListener('keydown', this.handleInteraction);
                     
                     // Clear private data
