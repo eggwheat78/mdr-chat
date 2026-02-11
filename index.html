@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- Security Headers -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'none';">
+    <!-- Security Headers - Added img-src for images -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'none';">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta http-equiv="X-Frame-Options" content="DENY">
     <meta http-equiv="Referrer-Policy" content="no-referrer">
@@ -36,6 +36,7 @@
             --text-light: #5C6B7A;
             --shadow-light: rgba(0, 0, 0, 0.08);
             --border-light: #e0e4eb;
+            --image-overlay-bg: rgba(0, 0, 0, 0.9);
         }
 
         body {
@@ -279,6 +280,143 @@
             100% { transform: scale(0.95); opacity: 0.7; }
         }
 
+        /* ==================== */
+        /* IMAGE STYLES */
+        /* ==================== */
+
+        /* Container for chat images - controls maximum size */
+        .chat-image-container {
+            display: inline-block;
+            max-width: 260px;
+            max-height: 180px;
+            position: relative;
+            margin: 6px 0 8px 0;
+            overflow: hidden;
+            border-radius: 10px;
+            background: #f8f9fa;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+        }
+
+        /* Different sizes for different message types */
+        .message-customer .chat-image-container {
+            max-width: 240px;
+            max-height: 170px;
+        }
+
+        .message-t2 .chat-image-container {
+            border-left: 3px solid var(--orange); /* Match T2 theme */
+        }
+
+        /* The actual image - will be constrained by container */
+        .chat-image {
+            width: 100%; /* Fill container */
+            height: 100%; /* Fill container */
+            object-fit: cover; /* Crop to fill container */
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 10px;
+            display: block;
+        }
+
+        /* Alternative: Use contain for diagrams/screenshots */
+        .chat-image.contain {
+            object-fit: contain;
+            padding: 4px;
+        }
+
+        /* Hover effects */
+        .chat-image:hover {
+            transform: scale(1.03);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Image caption */
+        .image-caption {
+            font-size: 12px;
+            margin-top: 6px;
+            color: inherit;
+            line-height: 1.4;
+            opacity: 0.9;
+        }
+
+        .message-customer .image-caption {
+            color: rgba(255, 255, 255, 0.95);
+            text-align: right;
+        }
+
+        /* ==================== */
+        /* IMAGE VIEWER OVERLAY */
+        /* ==================== */
+
+        .image-viewer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--image-overlay-bg);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .image-viewer.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .image-viewer img {
+            max-width: 90%;  /* Shows at full resolution */
+            max-height: 90%; /* Shows at full resolution */
+            object-fit: contain;
+            border-radius: 8px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+        }
+
+        .image-viewer.active img {
+            transform: scale(1);
+        }
+
+        .close-viewer {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s ease;
+            z-index: 1001;
+        }
+
+        .close-viewer:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .image-counter {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            color: white;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
         /* Responsive */
         @media (max-width: 600px) {
             .bubble {
@@ -292,6 +430,22 @@
             
             .header {
                 padding: 14px 16px;
+            }
+            
+            /* Smaller images on mobile */
+            .chat-image-container {
+                max-width: 220px;
+                max-height: 160px;
+            }
+            
+            .message-customer .chat-image-container {
+                max-width: 200px;
+                max-height: 150px;
+            }
+            
+            .image-viewer img {
+                max-width: 95%;
+                max-height: 80%;
             }
         }
     </style>
@@ -314,7 +468,7 @@
                 <span class="date-label">Today</span>
             </div>
 
-            <!-- Messages will be shown sequentially -->
+            <!-- Original messages -->
             <div class="bubble message-csm">
                 <div class="sender-label">Sangfor-CSM</div>
                 <div class="message-content">This is a test.</div>
@@ -362,8 +516,58 @@
                 <div class="message-content">What???</div>
                 <div class="timestamp" data-time-offset="7">03:05 AM</div>
             </div>
+
+            <!-- Additional image messages (appear after the original conversation) -->
+            <div class="bubble message-csm">
+                <div class="sender-label">Sangfor-CSM</div>
+                <div class="message-content">
+                    <div class="chat-image-container">
+                        <img src="https://images.unsplash.com/photo-1550745165-9bc0b252726f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80" 
+                             alt="Server Room Setup" 
+                             class="chat-image"
+                             data-image-id="server-room">
+                    </div>
+                    <div class="image-caption">Here's our server room monitoring dashboard for reference.</div>
+                </div>
+                <div class="timestamp" data-time-offset="8">03:13 AM</div>
+            </div>
+
+            <div class="bubble message-customer">
+                <div class="sender-label">CustA-PIC1</div>
+                <div class="message-content">
+                    <div class="chat-image-container">
+                        <img src="https://images.unsplash.com/photo-1620712943543-bcc4688e7485?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80" 
+                             alt="Security Dashboard" 
+                             class="chat-image contain"
+                             data-image-id="security-dashboard">
+                    </div>
+                    <div class="image-caption">This is what we're currently using. Can you match this?</div>
+                </div>
+                <div class="timestamp" data-time-offset="9">03:17 AM</div>
+            </div>
+
+            <div class="bubble message-t2">
+                <div class="sender-label">Sangfor-T2</div>
+                <div class="message-content">
+                    <div class="chat-image-container">
+                        <img src="https://images.unsplash.com/photo-1558494949-ef010cbdcc31?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80" 
+                             alt="Network Architecture" 
+                             class="chat-image contain"
+                             data-image-id="network-architecture">
+                    </div>
+                    <div class="image-caption">Our recommended network security architecture for your environment.</div>
+                </div>
+                <div class="timestamp" data-time-offset="10">03:22 AM</div>
+            </div>
         </div>
     </main>
+
+    <!-- Image Viewer Overlay -->
+    <div class="image-viewer" id="imageViewer">
+        <button class="close-viewer" id="closeViewer">&times;</button>
+        <img id="viewedImage" src="" alt="">
+        <div class="image-counter" id="imageCounter"></div>
+    </div>
 
     <script nonce="script-nonce">
         // Security: Validate and sanitize user input
@@ -388,6 +592,25 @@
              */
             isValidTimeOffset: function(offset) {
                 return Number.isInteger(offset) && offset >= 0 && offset <= 60;
+            },
+
+            /**
+             * Validate image URL to prevent malicious content
+             * @param {string} url - Image URL to validate
+             * @returns {boolean} True if valid
+             */
+            isValidImageUrl: function(url) {
+                if (typeof url !== 'string') return false;
+                
+                // Allow data URLs, https URLs, and relative paths
+                const validPatterns = [
+                    /^data:image\/(jpeg|jpg|png|gif|webp);base64,/i,
+                    /^https:\/\//i,
+                    /^\//, // Relative paths
+                    /^\.\// // Current directory paths
+                ];
+                
+                return validPatterns.some(pattern => pattern.test(url));
             },
 
             /**
@@ -423,7 +646,8 @@
                     baseTime: null,
                     initialized: false,
                     touchStartY: 0,
-                    isScrolling: false
+                    isScrolling: false,
+                    images: [] // Store all image elements for viewer
                 });
 
                 this.init();
@@ -454,7 +678,8 @@
              * @returns {Array} Array of cumulative time offsets in minutes
              */
             generateRandomTimeOffsets() {
-                const messageCount = 8;
+                // We have 11 messages total (8 original + 3 image messages)
+                const messageCount = 11;
                 const offsets = [0]; // First message at offset 0
                 let cumulativeOffset = 0;
                 
@@ -538,6 +763,91 @@
             }
             
             /**
+             * Initialize image viewer functionality
+             */
+            initImageViewer() {
+                const images = document.querySelectorAll('.chat-image');
+                const imageViewer = document.getElementById('imageViewer');
+                const viewedImage = document.getElementById('viewedImage');
+                const closeViewer = document.getElementById('closeViewer');
+                const imageCounter = document.getElementById('imageCounter');
+                
+                // Store all images in private property
+                this._setPrivate('images', Array.from(images));
+                
+                // Add click event to each image
+                images.forEach((img, index) => {
+                    img.addEventListener('click', (e) => {
+                        e.stopPropagation(); // Prevent triggering chat progression
+                        
+                        // Security: Validate image URL
+                        if (!SecurityUtils.isValidImageUrl(img.src)) {
+                            console.error('Invalid image URL');
+                            return;
+                        }
+                        
+                        // Show image in viewer
+                        viewedImage.src = img.src;
+                        viewedImage.alt = img.alt;
+                        
+                        // Update counter
+                        const totalImages = this._getPrivate('images').length;
+                        imageCounter.textContent = `${index + 1} / ${totalImages}`;
+                        
+                        // Show viewer
+                        imageViewer.classList.add('active');
+                        document.body.style.overflow = 'hidden'; // Prevent scrolling
+                    });
+                });
+                
+                // Close viewer on button click
+                closeViewer.addEventListener('click', () => {
+                    imageViewer.classList.remove('active');
+                    document.body.style.overflow = '';
+                    viewedImage.src = '';
+                });
+                
+                // Close viewer on ESC key
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && imageViewer.classList.contains('active')) {
+                        imageViewer.classList.remove('active');
+                        document.body.style.overflow = '';
+                        viewedImage.src = '';
+                    }
+                });
+                
+                // Close viewer on background click
+                imageViewer.addEventListener('click', (e) => {
+                    if (e.target === imageViewer) {
+                        imageViewer.classList.remove('active');
+                        document.body.style.overflow = '';
+                        viewedImage.src = '';
+                    }
+                });
+                
+                // Add keyboard navigation for images
+                document.addEventListener('keydown', (e) => {
+                    if (!imageViewer.classList.contains('active')) return;
+                    
+                    const images = this._getPrivate('images');
+                    const currentSrc = viewedImage.src;
+                    const currentIndex = images.findIndex(img => img.src === currentSrc);
+                    
+                    if (e.key === 'ArrowLeft' && currentIndex > 0) {
+                        // Previous image
+                        viewedImage.src = images[currentIndex - 1].src;
+                        viewedImage.alt = images[currentIndex - 1].alt;
+                        imageCounter.textContent = `${currentIndex} / ${images.length}`;
+                    } else if (e.key === 'ArrowRight' && currentIndex < images.length - 1) {
+                        // Next image
+                        viewedImage.src = images[currentIndex + 1].src;
+                        viewedImage.alt = images[currentIndex + 1].alt;
+                        imageCounter.textContent = `${currentIndex + 2} / ${images.length}`;
+                    }
+                });
+            }
+            
+            /**
              * Show the next message in sequence
              */
             showNextMessage() {
@@ -590,6 +900,16 @@
              * @param {Event} event - The DOM event
              */
             handleInteraction(event) {
+                // Don't trigger if clicking on an image (image viewer handles this)
+                if (event.target.closest('.chat-image')) {
+                    return;
+                }
+                
+                // Don't trigger if image viewer is active
+                if (document.getElementById('imageViewer').classList.contains('active')) {
+                    return;
+                }
+                
                 // Security: Prevent multiple rapid clicks
                 if (this._interactionCooldown) {
                     event.preventDefault();
@@ -680,6 +1000,7 @@
                     
                     this._setPrivate('elements', elements);
                     this.updateTimestamps();
+                    this.initImageViewer(); // Initialize image viewer
                     
                     // Security: Bind event handlers with proper context
                     const boundHandleInteraction = this.handleInteraction.bind(this);
