@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Security Headers - Added img-src for images -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'none';">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="Referrer-Policy" content="no-referrer">
+    <title>Athena MDR Communication Demo</title>
+    
+    <!-- Inline styles for CSP compliance -->
+    <style nonce="style-nonce">
+        /* Reset & Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .bubble, .message-content {
+            -webkit-user-select: text;
+            user-select: text;
+        }
+
+        :root {
+            --primary-blue: #00479D;
+            --primary-green: #6FBA2C;
+            --secondary-green: #4ca61d;
+            --secondary-blue: #003366;
+            --orange: #FF8C42;
+            --light-bg: #f0f4f8;
+            --white: #ffffff;
+            --text-dark: #333333;
+            --text-light: #5C6B7A;
+            --shadow-light: rgba(0, 0, 0, 0.08);
+            --border-light: #e0e4eb;
+            --image-overlay-bg: rgba(0, 0, 0, 0.9);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--light-bg);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
+        }
+
+        /* Header Styles */
+        .header {
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--secondary-blue) 100%);
+            color: var(--white);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-weight: 500;
+            box-shadow: 0 2px 10px rgba(0, 71, 157, 0.2);
+        }
+
+        .avatar {
+            width: 42px;
+            height: 42px;
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-green) 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--white);
+            font-weight: bold;
+            font-size: 18px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            flex-shrink: 0;
+        }
+
+        .header-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .header-title {
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--white);
+            margin-bottom: 2px;
+        }
+
+        .header-subtitle {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.95);
+            font-weight: 400;
+        }
+
+        /* Chat Container */
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--light-bg);
+            overflow: hidden;
+        }
+
+        .chat {
+            flex: 1;
+            padding: 20px 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Scrollbar */
+        .chat::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat::-webkit-scrollbar-track {
+            background: #e8ebf0;
+            border-radius: 3px;
+        }
+
+        .chat::-webkit-scrollbar-thumb {
+            background: #669CD0;
+            border-radius: 3px;
+        }
+
+        .chat::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-blue);
+        }
+
+        /* Message Bubbles */
+        .bubble {
+            max-width: 70%;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            font-size: 14.5px;
+            line-height: 1.4;
+            border-radius: 16px;
+            position: relative;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            word-wrap: break-word;
+        }
+
+        .bubble.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Message Types */
+        .message-csm {
+            background: var(--white);
+            align-self: flex-start;
+            color: var(--text-dark);
+            margin-right: auto;
+            box-shadow: 0 2px 8px var(--shadow-light);
+            border-left: 4px solid var(--primary-blue);
+            border-radius: 16px 16px 16px 6px;
+        }
+
+        .message-customer {
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--secondary-green) 100%);
+            align-self: flex-end;
+            color: var(--white);
+            margin-left: auto;
+            box-shadow: 0 2px 8px rgba(111, 186, 44, 0.2);
+            border-right: 4px solid #5a9e23;
+            border-radius: 16px 16px 6px 16px;
+        }
+
+        .message-t2 {
+            background: var(--white);
+            align-self: flex-start;
+            color: var(--text-dark);
+            margin-right: auto;
+            box-shadow: 0 2px 8px var(--shadow-light);
+            border-left: 4px solid var(--orange);
+            border-radius: 16px 16px 16px 6px;
+        }
+
+        /* Sender Labels */
+        .sender-label {
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .message-csm .sender-label {
+            color: var(--primary-blue);
+            text-align: left;
+        }
+
+        .message-t2 .sender-label {
+            color: var(--orange);
+            text-align: left;
+        }
+
+        .message-customer .sender-label {
+            color: rgba(255, 255, 255, 0.95);
+            text-align: right;
+        }
+
+        /* Timestamps */
+        .timestamp {
+            font-size: 11px;
+            margin-top: 6px;
+            opacity: 0.8;
+            font-weight: 400;
+        }
+
+        .message-csm .timestamp,
+        .message-t2 .timestamp {
+            color: var(--text-light);
+            text-align: left;
+        }
+
+        .message-customer .timestamp {
+            color: rgba(255, 255, 255, 0.95);
+            text-align: right;
+        }
+
+        .message-content {
+            margin-bottom: 2px;
+        }
+
+        /* Date Separator */
+        .date-separator {
+            text-align: center;
+            margin: 24px 0;
+            position: relative;
+        }
+
+        .date-separator:before {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: var(--border-light);
+        }
+
+        .date-label {
+            background: var(--white);
+            color: var(--primary-blue);
+            padding: 6px 20px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            border: 1px solid var(--border-light);
+            position: relative;
+            z-index: 2;
+            display: inline-block;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Status Indicator */
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: var(--primary-green);
+            border-radius: 50%;
+            margin-left: 8px;
+            vertical-align: middle;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 0.7; }
+            50% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.7; }
+        }
+
+        /* IMAGE STYLES */
+        .chat-image-container {
+            display: inline-block;
+            max-width: 260px;
+            max-height: 180px;
+            position: relative;
+            margin: 6px 0 8px 0;
+            overflow: hidden;
+            border-radius: 10px;
+            background: #f8f9fa;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+        }
+
+        .message-customer .chat-image-container {
+            max-width: 240px;
+            max-height: 170px;
+        }
+
+        .message-t2 .chat-image-container {
+            border-left: 3px solid var(--orange);
+        }
+
+        .chat-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 10px;
+            display: block;
+        }
+
+        .chat-image.contain {
+            object-fit: contain;
+            padding: 4px;
+        }
+
+        .chat-image:hover {
+            transform: scale(1.03);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .image-caption {
+            font-size: 12px;
+            margin-top: 6px;
+            color: inherit;
+            line-height: 1.4;
+            opacity: 0.9;
+        }
+
+        .message-customer .image-caption {
+            color: rgba(255, 255, 255, 0.95);
+            text-align: right;
+        }
+
+        /* IMAGE VIEWER OVERLAY */
+        .image-viewer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--image-overlay-bg);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .image-viewer.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .image-viewer img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+            border-radius: 8px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+        }
+
+        .image-viewer.active img {
+            transform: scale(1);
+        }
+
+        .close-viewer {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s ease;
+            z-index: 1001;
+        }
+
+        .close-viewer:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .image-counter {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            color: white;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .bubble {
+                max-width: 85%;
+                font-size: 15px;
+            }
+            
+            .chat {
+                padding: 16px 12px;
+            }
+            
+            .header {
+                padding: 14px 16px;
+            }
+            
+            .chat-image-container {
+                max-width: 220px;
+                max-height: 160px;
+            }
+            
+            .message-customer .chat-image-container {
+                max-width: 200px;
+                max-height: 150px;
+            }
+            
+            .image-viewer img {
+                max-width: 95%;
+                max-height: 80%;
+            }
+        }
+
+        /* Error State */
+        .error {
+            text-align: center;
+            padding: 40px 20px;
+            color: #d32f2f;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header will be populated by JavaScript -->
+    <header class="header" id="chatHeader">
+        <div class="avatar" id="chatAvatar"></div>
+        <div class="header-content">
+            <div class="header-title" id="chatTitle"></div>
+            <div class="header-subtitle" id="chatSubtitle">
+                <span id="chatSubtitleText"></span>
+                <span class="status-indicator" aria-label="Online"></span>
+            </div>
+        </div>
+    </header>
+
+    <main class="chat-container">
+        <!-- Chat messages will be populated by JavaScript -->
+        <div class="chat" id="chatContainer">
+            <div class="date-separator" id="dateSeparator">
+                <span class="date-label" id="dateLabel"></span>
+            </div>
+            <!-- Messages will be inserted here -->
+        </div>
+    </main>
+
+    <!-- Image Viewer Overlay -->
+    <div class="image-viewer" id="imageViewer">
+        <button class="close-viewer" id="closeViewer">&times;</button>
+        <img id="viewedImage" src="" alt="">
+        <div class="image-counter" id="imageCounter"></div>
+    </div>
+
+    <!-- Load modular JavaScript files -->
+    <script src="security-utils.js" nonce="script-nonce"></script>
+    <script src="chat-content.js" nonce="script-nonce"></script>
+    <script src="chat-engine.js" nonce="script-nonce"></script>
+    
+    <!-- Initialization Script -->
+    <script nonce="script-nonce">
+        // Initialize application when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                // Use the ChatContent configuration
+                const chatDemo = new ChatDemo(ChatContent);
+                
+                // Security measures
+                Object.freeze(Object.prototype);
+                Object.freeze(Array.prototype);
+                Object.freeze(String.prototype);
+                
+            } catch (error) {
+                console.error('Failed to initialize application:', error);
+                document.getElementById('chatContainer').innerHTML = 
+                    '<div class="error">Application failed to load. Please refresh the page.</div>';
+            }
+        });
+
+        // Security: Prevent opening of new windows/tabs
+        if (window.opener) {
+            window.opener = null;
+        }
+        if (window.top !== window.self) {
+            window.top.location = window.self.location;
+        }
+    </script>
+</body>
+</html>
