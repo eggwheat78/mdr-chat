@@ -81,7 +81,7 @@ const ChatContent = {
             sender: "CustA-PIC1",
             content: {
                 type: "image",
-                url: "images/AnyDesk.jpg",
+                url: "images/Anydesk.jpg",
                 alt: "AnyDesk",
                 fit: "cover",
             }
